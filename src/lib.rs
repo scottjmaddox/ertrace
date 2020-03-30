@@ -1,5 +1,18 @@
 //! **Experimental Error Return Tracing for Rust.**
 //!
+//! This library is very much in its early days. Some effort has been made
+//! to implement functionality with performance in mind, but, so far, no
+//! profiling has been performed. There is undoubtedly room for improvement.
+//!
+//! The immediate goals of this library are to:
+//!     1. provide a minimal-boilerplate error handling story based around error
+//!        return tracing, and
+//!     2. demonstrate the value of error return tracing with the hopes of
+//!        getting support directly integrated into the Rust compiler.
+//!
+//! All type, function, trait, and macro names are unstable and might change.
+//! Name bikeshedding is welcome.
+//!
 //! ## Error Return Tracing
 //!
 //! Error return tracing is a novel error handling concept developed by
@@ -20,26 +33,26 @@
 //!
 //! Futhermore, error return traces can even provide more useful information
 //! than stack traces, since they trace where and why an error of one type
-//! causes an error of another type. Furthermore, since the errors are traced
+//! causes an error of another type. Finally, since the errors are traced
 //! through each return point, error return tracing works seamlessly with
 //! M:N threading, futures, and async/await.
-//! 
+//!
 //! ## Example
 //!
 //! ```rust,should_panic
 //! ertrace::new_error_type!(struct AError);
-//! 
+//!
 //! fn a() -> Result<(), AError> {
 //!     b().map_err(|e| ertrace::trace!(AError from e))?;
 //!     Ok(())
 //! }
-//! 
+//!
 //! ertrace::new_error_type!(struct BError);
-//! 
+//!
 //! fn b() -> Result<(), BError> {
 //!     Err(ertrace::trace!(BError))
 //! }
-//! 
+//!
 //! ertrace::init(1024);
 //! ertrace::try_or_fatal!(a());
 //! ```
@@ -47,10 +60,10 @@
 //! Output:
 //! ```skip
 //! error return trace:
-//! 0: BError at src/lib.rs:12:9 in rust_out
-//! 1: AError at src/lib.rs:6:21 in rust_out
+//! 0: BError at src/lib.rs:14:9 in rust_out
+//! 1: AError at src/lib.rs:7:21 in rust_out
 //! 
-//! thread 'main' panicked at 'fatal error', src/lib.rs:16:1
+//! thread 'main' panicked at 'fatal error', src/lib.rs:18:1
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //!
@@ -65,7 +78,7 @@
 //!
 //! ## Performance: Stack Traces vs. Error Return Traces
 //!
-//! In order for a stack trace to be presented when an exception goes uncaught,
+//! In order for a stack trace to be displayed when an exception goes uncaught,
 //! the entire stack trace must be captured when the exception is created (or
 //! when it is thrown/raised). This is a fairly expensive operation since it
 //! requires traversing each stack frame and storing (at minimum) a pointer to
@@ -76,17 +89,13 @@
 //! performance. In reality, though, errors are quite common, and the cost of
 //! stack traces is not negligible.
 //!
-//! In contrast
-//! This means that the cost
-//! of an error return tracing scales linearly with the number of times errors
-//! are returned. If an error is handled one stack frame above where it is
-//! first created, the cost can be as small as a few ALU ops and a single memory
-//! write.
+//! In contrast, the cost of error return tracing starts very small, and scales
+//! linearly with the number of times errors are returned. If an error is
+//! handled one stack frame above where it is first created, the overhead
+//! runtime cost can be as small as a few ALU ops and a single memory write.
 
-
-// TODO: uncomment these
 #![deny(missing_debug_implementations)]
-// #![deny(missing_docs)]
+// #![deny(missing_docs)] // TODO: uncomment this
 #![cfg_attr(not(feature = "std"), no_std)]
 #[cfg(feature = "std")]
 extern crate std;
@@ -100,7 +109,7 @@ use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use static_assertions::const_assert;
 
-//TODO: wrap these in a cache-padded struct
+//TODO: wrap these in a cache-padded struct?
 static TRACE_NODE_ARENA_START: AtomicPtr<u8> = AtomicPtr::new(core::ptr::null_mut());
 static TRACE_NODE_ARENA_OFFSET_MASK: AtomicUsize = AtomicUsize::new(0);
 static TRACE_NODE_ARENA_OFFSET_UNMASKED: AtomicUsize = AtomicUsize::new(0);
@@ -257,7 +266,8 @@ pub fn eprint(node_ptr: NonNull<ErrorTraceNode>) {
     eprintln!("error return trace:");
     for (i, node) in nodes.iter().rev().enumerate() {
         let loc = node.location;
-        eprintln!("{}: {} at {}:{}:{} in {}",
+        eprintln!(
+            "{}: {} at {}:{}:{} in {}",
             i, loc.err_name, loc.file, loc.line, loc.column, loc.module_path
         );
     }
@@ -292,7 +302,7 @@ macro_rules! try_or_fatal {
                 $crate::fatal!(err);
             }
         }
-}};
+    }};
 }
 
 #[cfg(test)]
