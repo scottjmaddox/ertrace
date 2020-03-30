@@ -1,8 +1,18 @@
 [package]
 name = "ertrace"
 version = "0.1.0"
-authors = ["Scott J Maddox"]
 edition = "2018"
+authors = ["Scott J Maddox"]
+license = "MIT OR Apache-2.0"
+description = "Experimental Error Return Tracing for Rust"
+repository = "https://github.com/scottjmaddox/ertrace"
+documentation = "https://docs.serde.rs/ertrace/"
+keywords = ["ertrace", "error", "return", "tracing", "no_std"]
+categories = ["development-tools::debugging", "no-std"]
+include = [
+    "examples/**/*.rs", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE",
+    "LICENSE-MIT", "README.md"
+]
 
 [features]
 default = ['alloc', 'std']
