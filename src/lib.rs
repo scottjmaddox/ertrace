@@ -85,7 +85,7 @@
 
 
 // TODO: uncomment these
-// #![deny(missing_debug_implementations)]
+#![deny(missing_debug_implementations)]
 // #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #[cfg(feature = "std")]
@@ -105,12 +105,14 @@ static TRACE_NODE_ARENA_START: AtomicPtr<u8> = AtomicPtr::new(core::ptr::null_mu
 static TRACE_NODE_ARENA_OFFSET_MASK: AtomicUsize = AtomicUsize::new(0);
 static TRACE_NODE_ARENA_OFFSET_UNMASKED: AtomicUsize = AtomicUsize::new(0);
 
+#[derive(Debug)]
 pub struct ErrorTraceNode {
     pub location: &'static ErrorTraceLocation,
     pub cause: *mut ErrorTraceNode,
 }
 const_assert!(core::mem::size_of::<ErrorTraceNode>().is_power_of_two());
 
+#[derive(Debug)]
 pub struct ErrorTraceLocation {
     pub err_name: &'static str,
     pub file: &'static str,
