@@ -3,32 +3,34 @@ fn main() {
     ertrace::try_or_fatal!(a());
 }
 
-ertrace::new_error_type!(struct AError);
 fn a() -> Result<(), AError> {
-    crate::b::b().map_err(|e| ertrace::trace!(AError from e))?;
+    crate::b::b().map_err(|e| ertrace::trace!(AError caused by e))?;
     Ok(())
 }
+ertrace::new_error_type!(struct AError);
 
 mod b {
-    ertrace::new_error_type!(pub struct BError);
-    // ertrace::new_error_type!(pub enum BError { BError1, BError2 } );
     pub fn b() -> Result<(), BError> {
-        crate::c::c().map_err(|e| ertrace::trace!(BError from e))?;
+        crate::c::c().map_err(|e| match e.0 {
+            crate::c::CErrorKind::CError1 =>
+                ertrace::trace!(BError(BErrorKind::BError1) caused by e),
+            crate::c::CErrorKind::CError2 =>
+                ertrace::trace!(BError(BErrorKind::BError2) caused by e),
+        })?;
         Ok(())
     }
+    ertrace::new_error_type!(pub struct BError(pub BErrorKind));
+    ertrace::new_error_type!(pub enum BErrorKind { BError1, BError2 });
 }
 
 mod c {
-    ertrace::new_error_type!(pub struct CError);
     pub fn c() -> Result<(), CError> {
-        crate::d::d().map_err(|e| ertrace::trace!(CError from e))?;
-        Ok(())
+        if true {
+            Err(ertrace::trace!(CError(CErrorKind::CError1)))
+        } else {
+            Err(ertrace::trace!(CError(CErrorKind::CError2)))
+        }
     }
-}
-
-mod d {
-    ertrace::new_error_type!(pub struct DError);
-    pub fn d() -> Result<(), DError> {
-        Err(ertrace::trace!(DError))
-    }
+    ertrace::new_error_type!(pub struct CError(pub CErrorKind));
+    ertrace::new_error_type!(pub enum CErrorKind { CError1, CError2 });
 }

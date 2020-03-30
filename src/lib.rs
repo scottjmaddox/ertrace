@@ -1,17 +1,15 @@
 //! **Experimental Error Return Tracing for Rust.**
 //!
-//! This library is very much in its early days. Some effort has been made
-//! to implement functionality with performance in mind, but, so far, no
-//! profiling has been performed. There is undoubtedly room for improvement.
-//!
 //! The immediate goals of this library are to:
 //!     1. provide a minimal-boilerplate error handling story based around error
 //!        return tracing, and
 //!     2. demonstrate the value of error return tracing with the hopes of
 //!        getting support directly integrated into the Rust compiler.
 //!
-//! All type, function, trait, and macro names are unstable and might change.
-//! Name bikeshedding is welcome.
+//! This library is very much in its early days and is highly unstable. Some
+//! effort has been made to implement functionality with performance in mind,
+//! but, so far, no profiling has been performed. There is undoubtedly room for
+//! improvement.
 //!
 //! ## Error Return Tracing
 //!
@@ -31,27 +29,25 @@
 //! the performance differences between stack traces and error return traces,
 //! please see the section on *Performance*, below.)
 //!
-//! Futhermore, error return traces can even provide more useful information
-//! than stack traces, since they trace where and why an error of one type
+//! Futhermore, error return traces can even provide *more* useful information
+//! than basic stack traces, since they trace where and why an error of one type
 //! causes an error of another type. Finally, since the errors are traced
 //! through each return point, error return tracing works seamlessly with
 //! M:N threading, futures, and async/await.
 //!
-//! ## Example
+//! ## Simple Example
 //!
 //! ```rust,should_panic
-//! ertrace::new_error_type!(struct AError);
-//!
 //! fn a() -> Result<(), AError> {
-//!     b().map_err(|e| ertrace::trace!(AError from e))?;
+//!     b().map_err(|e| ertrace::trace!(AError caused by e))?;
 //!     Ok(())
 //! }
-//!
-//! ertrace::new_error_type!(struct BError);
+//! ertrace::new_error_type!(struct AError);
 //!
 //! fn b() -> Result<(), BError> {
 //!     Err(ertrace::trace!(BError))
 //! }
+//! ertrace::new_error_type!(struct BError);
 //!
 //! ertrace::init(1024);
 //! ertrace::try_or_fatal!(a());
@@ -60,12 +56,65 @@
 //! Output:
 //! ```skip
 //! error return trace:
-//! 0: BError at src/lib.rs:14:9 in rust_out
-//! 1: AError at src/lib.rs:7:21 in rust_out
+//! 0: BError at src/lib.rs:11:9 in rust_out
+//! 1: AError at src/lib.rs:5:21 in rust_out
 //! 
-//! thread 'main' panicked at 'fatal error', src/lib.rs:18:1
+//! thread 'main' panicked at 'fatal error', src/lib.rs:16:1
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
+//!
+//! ## Complex Example
+//!
+//! ```rust,should_panic
+//! fn main() {
+//!     ertrace::init(1024);
+//!     ertrace::try_or_fatal!(a());
+//! }
+//! 
+//! fn a() -> Result<(), AError> {
+//!     crate::b::b().map_err(|e| ertrace::trace!(AError caused by e))?;
+//!     Ok(())
+//! }
+//! ertrace::new_error_type!(struct AError);
+//! 
+//! mod b {
+//!     pub fn b() -> Result<(), BError> {
+//!         crate::c::c().map_err(|e| match e.0 {
+//!             crate::c::CErrorKind::CError1 =>
+//!                 ertrace::trace!(BError(BErrorKind::BError1) caused by e),
+//!             crate::c::CErrorKind::CError2 =>
+//!                 ertrace::trace!(BError(BErrorKind::BError2) caused by e),
+//!         })?;
+//!         Ok(())
+//!     }
+//!     ertrace::new_error_type!(pub struct BError(pub BErrorKind));
+//!     ertrace::new_error_type!(pub enum BErrorKind { BError1, BError2 });
+//! }
+//! 
+//! mod c {
+//!     pub fn c() -> Result<(), CError> {
+//!         if true {
+//!             Err(ertrace::trace!(CError(CErrorKind::CError1)))
+//!         } else {
+//!             Err(ertrace::trace!(CError(CErrorKind::CError2)))
+//!         }
+//!     }
+//!     ertrace::new_error_type!(pub struct CError(pub CErrorKind));
+//!     ertrace::new_error_type!(pub enum CErrorKind { CError1, CError2 });
+//! }
+//! ```
+//!
+//! Output:
+//! ```skip
+//! error return trace:
+//! 0: CError(CErrorKind::CError1) at src/lib.rs:31:17 in rust_out::c
+//! 1: BError(BErrorKind::BError1) at src/lib.rs:18:17 in rust_out::b
+//! 2: AError at src/lib.rs:9:31 in rust_out
+//! 
+//! thread 'main' panicked at 'fatal error', src/lib.rs:5:5
+//! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+//! ```
+//!
 //!
 //! ## `#![no_std]` Support
 //!
@@ -123,7 +172,7 @@ const_assert!(core::mem::size_of::<ErrorTraceNode>().is_power_of_two());
 
 #[derive(Debug)]
 pub struct ErrorTraceLocation {
-    pub err_name: &'static str,
+    pub tag: &'static str,
     pub file: &'static str,
     pub line: u32,
     pub column: u32,
@@ -179,69 +228,112 @@ pub fn alloc_trace_node() -> NonNull<ErrorTraceNode> {
 
 #[macro_export]
 macro_rules! new_error_type {
-    (pub struct $err_name:ident) => {
-        pub struct $err_name(core::ptr::NonNull<$crate::ErrorTraceNode>);
-        impl $crate::GetErrorTraceNodePtr for $err_name {
+    (struct $struct_name:ident) => {
+        // e.g. `new_error_type!(struct Error);`
+        struct $struct_name(core::ptr::NonNull<$crate::ErrorTraceNode>);
+
+        impl $crate::GetErrorTraceNodePtr for $struct_name {
             fn get_error_trace_node_ptr(&self) -> core::ptr::NonNull<$crate::ErrorTraceNode> {
                 self.0
             }
         }
     };
-    (struct $err_name:ident) => {
-        struct $err_name(core::ptr::NonNull<$crate::ErrorTraceNode>);
-        impl $crate::GetErrorTraceNodePtr for $err_name {
+
+    (pub struct $struct_name:ident) => {
+        // e.g. `new_error_type!(pub struct AError);`
+        pub struct $struct_name(core::ptr::NonNull<$crate::ErrorTraceNode>);
+
+        impl $crate::GetErrorTraceNodePtr for $struct_name {
             fn get_error_trace_node_ptr(&self) -> core::ptr::NonNull<$crate::ErrorTraceNode> {
                 self.0
             }
+        }
+    };
+
+    (pub struct $struct_name:ident(pub $enum_name:ident)) => {
+        // e.g. `new_error_type!(pub struct BError(pub BErrorKind));`
+        pub struct $struct_name(
+            pub $enum_name,
+            core::ptr::NonNull<$crate::ErrorTraceNode>);
+
+        impl $crate::GetErrorTraceNodePtr for $struct_name {
+            fn get_error_trace_node_ptr(&self) -> core::ptr::NonNull<$crate::ErrorTraceNode> {
+                self.1
+            }
+        }
+    };
+
+    (pub enum $enum_name:ident { $($variant_name:ident),* }) => {
+        // e.g. `new_error_type!(pub enum BErrorKind { BError1, BError2 });`
+        pub enum $enum_name {
+            $($variant_name,
+            )*
         }
     };
 }
 
 #[macro_export]
 macro_rules! trace {
-    ($err_name:ident) => {{
+    ($struct_name:ident($variant:expr) caused by $cause:expr) => ({
+        let cause: &dyn $crate::GetErrorTraceNodePtr = &$cause;
         let node = $crate::ErrorTraceNode {
-            location: $crate::error_trace_location!($err_name),
+            location: $crate::error_trace_location!($struct_name($variant)),
+            cause: cause.get_error_trace_node_ptr().as_ptr(),
+        };
+        let node_ptr = $crate::alloc_trace_node();
+        unsafe {
+            core::ptr::write(node_ptr.as_ptr(), node);
+        }
+        $struct_name($variant, node_ptr)
+    });
+
+    ($struct_name:ident caused by $cause:expr) => {{
+        let cause: &dyn $crate::GetErrorTraceNodePtr = &$cause;
+        let node = $crate::ErrorTraceNode {
+            location: $crate::error_trace_location!($struct_name),
+            cause: cause.get_error_trace_node_ptr().as_ptr(),
+        };
+        let node_ptr = $crate::alloc_trace_node();
+        unsafe {
+            core::ptr::write(node_ptr.as_ptr(), node);
+        }
+        $struct_name(node_ptr)
+    }};
+
+    ($struct_name:ident($variant:expr)) => ({
+        let node = $crate::ErrorTraceNode {
+            location: $crate::error_trace_location!($struct_name($variant)),
             cause: core::ptr::null_mut(),
         };
         let node_ptr = $crate::alloc_trace_node();
         unsafe {
             core::ptr::write(node_ptr.as_ptr(), node);
         }
-        $err_name(node_ptr)
-    }};
+        $struct_name($variant, node_ptr)
+    });
 
-    ($err_name:ident from $err_cause:expr) => {{
-        let err_cause: &dyn $crate::GetErrorTraceNodePtr = &$err_cause;
+    ($struct_name:ident) => {{
         let node = $crate::ErrorTraceNode {
-            location: $crate::error_trace_location!($err_name),
-            cause: err_cause.get_error_trace_node_ptr().as_ptr(),
+            location: $crate::error_trace_location!($struct_name),
+            cause: core::ptr::null_mut(),
         };
         let node_ptr = $crate::alloc_trace_node();
         unsafe {
             core::ptr::write(node_ptr.as_ptr(), node);
         }
-        $err_name(node_ptr)
-        // let mem = alloc_trace_node();
-        // let node = ErrorTraceNode {
-        //     location: $crate::error_trace_location!(),
-        //     cause_node_ptr: *mut u8,
-        // };
-        // let val = $err_name($cause_node_ptr.0);
-        // unsafe { *mem = val; }
-        // val
+        $struct_name(node_ptr)
     }};
 }
 
 #[macro_export(local_inner_macros)]
 /// Create `ErrorTraceLocation` at the given code location
 macro_rules! error_trace_location {
-    ($err_name:ident) => {{
+    ($tag:expr) => {{
         //TODO: confirm that the compiler only inserts a single
         // static string for file! and module_path!, rather than
         // one per invocation.
         static LOC: $crate::ErrorTraceLocation = $crate::ErrorTraceLocation {
-            err_name: core::stringify!($err_name),
+            tag: core::stringify!($tag),
             file: core::file!(),
             line: core::line!(),
             column: core::column!(),
@@ -268,7 +360,7 @@ pub fn eprint(node_ptr: NonNull<ErrorTraceNode>) {
         let loc = node.location;
         eprintln!(
             "{}: {} at {}:{}:{} in {}",
-            i, loc.err_name, loc.file, loc.line, loc.column, loc.module_path
+            i, loc.tag, loc.file, loc.line, loc.column, loc.module_path
         );
     }
     eprintln!("");
@@ -313,7 +405,7 @@ mod tests {
         crate::new_error_type!(struct AError);
 
         fn a() -> Result<(), AError> {
-            b().map_err(|e| crate::trace!(AError from e))?;
+            b().map_err(|e| crate::trace!(AError caused by e))?;
             Ok(())
         }
 
@@ -322,6 +414,39 @@ mod tests {
         fn b() -> Result<(), BError> {
             Err(crate::trace!(BError))
         }
+
+        crate::init(1024);
+        crate::try_or_fatal!(a());
+    }
+
+    #[test]
+    #[should_panic]
+    fn variants() {
+        fn a() -> Result<(), AError> {
+            b().map_err(|e| crate::trace!(AError caused by e))?;
+            Ok(())
+        }
+        crate::new_error_type!(struct AError);
+
+        fn b() -> Result<(), BError> {
+            c().map_err(|e| match e.0 {
+                CErrorKind::CError1 => crate::trace!(BError(BErrorKind::BError1) caused by e),
+                CErrorKind::CError2 => crate::trace!(BError(BErrorKind::BError2) caused by e),
+            })?;
+            Ok(())
+        }
+        crate::new_error_type!(pub struct BError(pub BErrorKind));
+        crate::new_error_type!(pub enum BErrorKind { BError1, BError2 });
+
+        fn c() -> Result<(), CError> {
+            if true {
+                Err(crate::trace!(CError(CErrorKind::CError1)))
+            } else {
+                Err(crate::trace!(CError(CErrorKind::CError2)))
+            }
+        }
+        crate::new_error_type!(pub struct CError(pub CErrorKind));
+        crate::new_error_type!(pub enum CErrorKind { CError1, CError2 });
 
         crate::init(1024);
         crate::try_or_fatal!(a());
