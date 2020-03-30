@@ -27,7 +27,8 @@
 //! as they bubble up the call stack, rather than by capturing an entire
 //! stack trace when an error is first encountered. (For more information on
 //! the performance differences between stack traces and error return traces,
-//! please see the section on *Performance*, below.)
+//! please see the [section on performance](
+//! #performance-stack-traces-vs-error-return-traces), below.)
 //!
 //! Futhermore, error return traces can even provide *more* useful information
 //! than basic stack traces, since they trace where and why an error of one type
@@ -38,16 +39,18 @@
 //! ## Simple Example
 //!
 //! ```rust,should_panic
+//! use ertrace::{ertrace, new_error_type};
+//! 
 //! fn a() -> Result<(), AError> {
-//!     b().map_err(|e| ertrace::trace!(AError caused by e))?;
+//!     b().map_err(|e| ertrace!(AError caused by e))?;
 //!     Ok(())
 //! }
-//! ertrace::new_error_type!(struct AError);
+//! new_error_type!(struct AError);
 //!
 //! fn b() -> Result<(), BError> {
-//!     Err(ertrace::trace!(BError))
+//!     Err(ertrace!(BError))
 //! }
-//! ertrace::new_error_type!(struct BError);
+//! new_error_type!(struct BError);
 //!
 //! ertrace::init(1024);
 //! ertrace::try_or_fatal!(a());
@@ -56,62 +59,68 @@
 //! Output:
 //! ```skip
 //! error return trace:
-//! 0: BError at src/lib.rs:11:9 in rust_out
-//! 1: AError at src/lib.rs:5:21 in rust_out
+//! 0: BError at src/lib.rs:13:9 in rust_out
+//! 1: AError at src/lib.rs:7:21 in rust_out
 //! 
-//! thread 'main' panicked at 'fatal error', src/lib.rs:16:1
+//! thread 'main' panicked at 'fatal error', src/lib.rs:18:1
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //!
 //! ## Complex Example
 //!
 //! ```rust,should_panic
+//! use ertrace::{ertrace, new_error_type};
+//!
 //! fn main() {
 //!     ertrace::init(1024);
 //!     ertrace::try_or_fatal!(a());
 //! }
 //! 
 //! fn a() -> Result<(), AError> {
-//!     crate::b::b().map_err(|e| ertrace::trace!(AError caused by e))?;
+//!     crate::b::b().map_err(|e| ertrace!(AError caused by e))?;
 //!     Ok(())
 //! }
-//! ertrace::new_error_type!(struct AError);
+//! new_error_type!(struct AError);
 //! 
 //! mod b {
+//!     use ertrace::{ertrace, new_error_type};
+//!
 //!     pub fn b() -> Result<(), BError> {
 //!         crate::c::c().map_err(|e| match e.0 {
 //!             crate::c::CErrorKind::CError1 =>
-//!                 ertrace::trace!(BError(BErrorKind::BError1) caused by e),
+//!                 ertrace!(BError(BErrorKind::BError1) caused by e),
 //!             crate::c::CErrorKind::CError2 =>
-//!                 ertrace::trace!(BError(BErrorKind::BError2) caused by e),
+//!                 ertrace!(BError(BErrorKind::BError2) caused by e),
 //!         })?;
 //!         Ok(())
 //!     }
-//!     ertrace::new_error_type!(pub struct BError(pub BErrorKind));
-//!     ertrace::new_error_type!(pub enum BErrorKind { BError1, BError2 });
+//!     new_error_type!(pub struct BError(pub BErrorKind));
+//!     new_error_type!(pub enum BErrorKind { BError1, BError2 });
 //! }
 //! 
 //! mod c {
+//!     use ertrace::{ertrace, new_error_type};
+//!
 //!     pub fn c() -> Result<(), CError> {
 //!         if true {
-//!             Err(ertrace::trace!(CError(CErrorKind::CError1)))
+//!             Err(ertrace!(CError(CErrorKind::CError1)))
 //!         } else {
-//!             Err(ertrace::trace!(CError(CErrorKind::CError2)))
+//!             Err(ertrace!(CError(CErrorKind::CError2)))
 //!         }
 //!     }
-//!     ertrace::new_error_type!(pub struct CError(pub CErrorKind));
-//!     ertrace::new_error_type!(pub enum CErrorKind { CError1, CError2 });
+//!     new_error_type!(pub struct CError(pub CErrorKind));
+//!     new_error_type!(pub enum CErrorKind { CError1, CError2 });
 //! }
 //! ```
 //!
 //! Output:
 //! ```skip
 //! error return trace:
-//! 0: CError(CErrorKind::CError1) at src/lib.rs:31:17 in rust_out::c
-//! 1: BError(BErrorKind::BError1) at src/lib.rs:18:17 in rust_out::b
-//! 2: AError at src/lib.rs:9:31 in rust_out
+//! 0: CError(CErrorKind::CError1) at src/lib.rs:37:17 in rust_out::c
+//! 1: BError(BErrorKind::BError1) at src/lib.rs:22:17 in rust_out::b
+//! 2: AError at src/lib.rs:11:31 in rust_out
 //! 
-//! thread 'main' panicked at 'fatal error', src/lib.rs:5:5
+//! thread 'main' panicked at 'fatal error', src/lib.rs:7:5
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //!
@@ -273,7 +282,7 @@ macro_rules! new_error_type {
 }
 
 #[macro_export]
-macro_rules! trace {
+macro_rules! ertrace {
     ($struct_name:ident($variant:expr) caused by $cause:expr) => ({
         let cause: &dyn $crate::GetErrorTraceNodePtr = &$cause;
         let node = $crate::ErrorTraceNode {
@@ -405,14 +414,14 @@ mod tests {
         crate::new_error_type!(struct AError);
 
         fn a() -> Result<(), AError> {
-            b().map_err(|e| crate::trace!(AError caused by e))?;
+            b().map_err(|e| crate::ertrace!(AError caused by e))?;
             Ok(())
         }
 
         crate::new_error_type!(struct BError);
 
         fn b() -> Result<(), BError> {
-            Err(crate::trace!(BError))
+            Err(crate::ertrace!(BError))
         }
 
         crate::init(1024);
@@ -423,15 +432,15 @@ mod tests {
     #[should_panic]
     fn variants() {
         fn a() -> Result<(), AError> {
-            b().map_err(|e| crate::trace!(AError caused by e))?;
+            b().map_err(|e| crate::ertrace!(AError caused by e))?;
             Ok(())
         }
         crate::new_error_type!(struct AError);
 
         fn b() -> Result<(), BError> {
             c().map_err(|e| match e.0 {
-                CErrorKind::CError1 => crate::trace!(BError(BErrorKind::BError1) caused by e),
-                CErrorKind::CError2 => crate::trace!(BError(BErrorKind::BError2) caused by e),
+                CErrorKind::CError1 => crate::ertrace!(BError(BErrorKind::BError1) caused by e),
+                CErrorKind::CError2 => crate::ertrace!(BError(BErrorKind::BError2) caused by e),
             })?;
             Ok(())
         }
@@ -440,9 +449,9 @@ mod tests {
 
         fn c() -> Result<(), CError> {
             if true {
-                Err(crate::trace!(CError(CErrorKind::CError1)))
+                Err(crate::ertrace!(CError(CErrorKind::CError1)))
             } else {
-                Err(crate::trace!(CError(CErrorKind::CError2)))
+                Err(crate::ertrace!(CError(CErrorKind::CError2)))
             }
         }
         crate::new_error_type!(pub struct CError(pub CErrorKind));
