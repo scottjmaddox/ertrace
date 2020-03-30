@@ -1,27 +1,27 @@
 fn main() {
-    errtrace::init(1024);
-    errtrace::try_or_fatal!(a());
+    ertrace::init(1024);
+    ertrace::try_or_fatal!(a());
 }
 
-errtrace::new_type!(AError);
+ertrace::new_error_type!(struct AError);
 fn a() -> Result<(), AError> {
-    b().map_err(|e| errtrace::new_from!(AError, e))?;
+    b().map_err(|e| ertrace::trace!(AError from e))?;
     Ok(())
 }
 
-errtrace::new_type!(BError);
+ertrace::new_error_type!(struct BError);
 fn b() -> Result<(), BError> {
-    c().map_err(|e| errtrace::new_from!(BError, e))?;
+    c().map_err(|e| ertrace::trace!(BError from e))?;
     Ok(())
 }
 
-errtrace::new_type!(CError);
+ertrace::new_error_type!(struct CError);
 fn c() -> Result<(), CError> {
-    d().map_err(|e| errtrace::new_from!(CError, e))?;
+    d().map_err(|e| ertrace::trace!(CError from e))?;
     Ok(())
 }
 
-errtrace::new_type!(DError);
+ertrace::new_error_type!(struct DError);
 fn d() -> Result<(), DError> {
-    Err(errtrace::new!(DError))
+    Err(ertrace::trace!(DError))
 }

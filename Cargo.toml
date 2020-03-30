@@ -1,5 +1,5 @@
 [package]
-name = "errtrace"
+name = "ertrace"
 version = "0.1.0"
 authors = ["Scott J Maddox"]
 edition = "2018"
