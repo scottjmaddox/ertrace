@@ -115,7 +115,7 @@ pub fn alloc_trace_node() -> NonNull<TraceNode> {
 #[macro_export]
 macro_rules! new_type {
     ($err_name:ident) => {
-        struct $err_name(core::ptr::NonNull<$crate::TraceNode>);
+        pub struct $err_name(core::ptr::NonNull<$crate::TraceNode>);
         impl $crate::GetTraceNodePtr for $err_name {
             fn get_trace_node_ptr(&self) -> core::ptr::NonNull<$crate::TraceNode> {
                 self.0
