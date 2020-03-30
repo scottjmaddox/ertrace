@@ -8,18 +8,30 @@
 //!
 //! ```rust,should_panic
 //! errtrace::new_type!(AError);
+//! 
 //! fn a() -> Result<(), AError> {
 //!     b().map_err(|e| errtrace::new_from!(AError, e))?;
 //!     Ok(())
 //! }
 //! 
 //! errtrace::new_type!(BError);
+//! 
 //! fn b() -> Result<(), BError> {
 //!     Err(errtrace::new!(BError))
 //! }
 //! 
 //! errtrace::init(1024);
 //! errtrace::try_or_fatal!(a());
+//! ```
+//!
+//! Output:
+//! ```skip
+//! error return trace:
+//! 0: BError at src/lib.rs:12:9 in rust_out
+//! 1: AError at src/lib.rs:6:21 in rust_out
+//! 
+//! thread 'main' panicked at 'fatal error', src/lib.rs:16:1
+//! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //!
 //! ## `#![no_std]` Support
