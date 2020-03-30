@@ -30,7 +30,7 @@
 //! please see the [section on performance](
 //! #performance-stack-traces-vs-error-return-traces), below.)
 //!
-//! Futhermore, error return traces can even provide *more* useful information
+//! Furthermore, error return traces can even provide *more* useful information
 //! than basic stack traces, since they trace where and why an error of one type
 //! causes an error of another type. Finally, since the errors are traced
 //! through each return point, error return tracing works seamlessly with
@@ -127,7 +127,7 @@
 //!
 //! ## `#![no_std]` Support
 //!
-//! Errtrace provides `no_std` support.
+//! Ertrace provides `no_std` support.
 //! By default, it depends on the `alloc` and `std` crates, in order
 //! to provide additional functionality, but these dependencies are
 //! gated behind the `alloc` and `std` features, respectively, and can be
