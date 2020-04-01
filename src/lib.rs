@@ -95,7 +95,7 @@
 //!         Ok(())
 //!     }
 //!     new_error_type!(pub struct BError(pub BErrorKind));
-//!     new_error_type!(pub enum BErrorKind { BError1, BError2 });
+//!     pub enum BErrorKind { BError1, BError2 }
 //! }
 //! 
 //! mod c {
@@ -109,7 +109,7 @@
 //!         }
 //!     }
 //!     new_error_type!(pub struct CError(pub CErrorKind));
-//!     new_error_type!(pub enum CErrorKind { CError1, CError2 });
+//!     pub enum CErrorKind { CError1, CError2 }
 //! }
 //! ```
 //!
@@ -269,14 +269,6 @@ macro_rules! new_error_type {
             fn get_error_trace_node_ptr(&self) -> core::ptr::NonNull<$crate::ErrorTraceNode> {
                 self.1
             }
-        }
-    };
-
-    (pub enum $enum_name:ident { $($variant_name:ident),* }) => {
-        // e.g. `new_error_type!(pub enum BErrorKind { BError1, BError2 });`
-        pub enum $enum_name {
-            $($variant_name,
-            )*
         }
     };
 }
@@ -445,7 +437,7 @@ mod tests {
             Ok(())
         }
         crate::new_error_type!(pub struct BError(pub BErrorKind));
-        crate::new_error_type!(pub enum BErrorKind { BError1, BError2 });
+        pub enum BErrorKind { BError1, BError2 }
 
         fn c() -> Result<(), CError> {
             if true {
@@ -455,7 +447,7 @@ mod tests {
             }
         }
         crate::new_error_type!(pub struct CError(pub CErrorKind));
-        crate::new_error_type!(pub enum CErrorKind { CError1, CError2 });
+        pub enum CErrorKind { CError1, CError2 }
 
         crate::init(1024);
         crate::try_or_fatal!(a());

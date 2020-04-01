@@ -98,7 +98,7 @@ mod b {
         Ok(())
     }
     new_error_type!(pub struct BError(pub BErrorKind));
-    new_error_type!(pub enum BErrorKind { BError1, BError2 });
+    pub enum BErrorKind { BError1, BError2 }
 }
 
 mod c {
@@ -112,7 +112,7 @@ mod c {
         }
     }
     new_error_type!(pub struct CError(pub CErrorKind));
-    new_error_type!(pub enum CErrorKind { CError1, CError2 });
+    pub enum CErrorKind { CError1, CError2 }
 }
 ```
 
