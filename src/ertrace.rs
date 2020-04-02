@@ -73,7 +73,7 @@ impl Ertrace {
         ertrace
     }
 
-    fn push_back(&mut self, data: &'static ErtraceLocation) {
+    pub fn push_back(&mut self, data: &'static ErtraceLocation) {
         let new_tail = new_tail_node(data);
         unsafe { self.tail.as_mut() }
             .next

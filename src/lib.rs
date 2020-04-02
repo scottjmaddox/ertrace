@@ -193,6 +193,12 @@ macro_rules! new_error_type {
             }
         }
 
+        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
+            fn as_mut(&mut self) -> &mut $crate::Ertrace {
+                &mut self.0
+            }
+        }
+
         impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
             fn as_ref(&self) -> &$crate::Ertrace {
                 &self.0
@@ -211,13 +217,13 @@ macro_rules! new_error_type {
             }
         }
 
-        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
-            fn as_ref(&self) -> &$crate::Ertrace {
-                &self.0
+        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
+            fn as_mut(&mut self) -> &mut $crate::Ertrace {
+                &mut self.0
             }
         }
 
-        impl core::convert::AsRef<$crate::Ertrace> for &$struct_name {
+        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
             fn as_ref(&self) -> &$crate::Ertrace {
                 &self.0
             }
@@ -235,6 +241,12 @@ macro_rules! new_error_type {
             }
         }
 
+        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
+            fn as_mut(&mut self) -> &mut $crate::Ertrace {
+                &mut self.1
+            }
+        }
+
         impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
             fn as_ref(&self) -> &$crate::Ertrace {
                 &self.1
@@ -248,7 +260,7 @@ macro_rules! ertrace {
     ($cause:expr => $struct_name:ident($variant:expr)) => {{
         let cause_ertrace: $crate::Ertrace = $cause.into();
         let ertrace = $crate::Ertrace::from_cause(cause_ertrace,
-            $crate::new_ertrace_location!($struct_name));
+            $crate::new_ertrace_location!($struct_name($variant)));
         $struct_name($variant, ertrace)
     }};
 
@@ -259,8 +271,16 @@ macro_rules! ertrace {
         $struct_name(ertrace)
     }};
 
+    ($cause:expr =>) => {{
+        {
+            let cause_ertrace: &mut $crate::Ertrace = $cause.as_mut();
+            cause_ertrace.push_back($crate::new_ertrace_location!(=>));
+        }
+        $cause        
+    }};
+
     ($struct_name:ident($variant:expr)) => {{
-        let ertrace = $crate::Ertrace::new($crate::new_ertrace_location!($struct_name));
+        let ertrace = $crate::Ertrace::new($crate::new_ertrace_location!($struct_name($variant)));
         $struct_name($variant, ertrace)
     }};
 
@@ -275,18 +295,20 @@ mod tests {
     #[test]
     #[should_panic]
     fn simple() {
-        crate::new_error_type!(struct AError);
-
         fn a() -> Result<(), AError> {
             b().map_err(|e| crate::ertrace!(e => AError))?;
             Ok(())
         }
-
-        crate::new_error_type!(struct BError);
+        crate::new_error_type!(struct AError);
 
         fn b() -> Result<(), BError> {
-            Err(crate::ertrace!(BError))
+            b_inner().map_err(|mut e| ertrace!(e =>))
         }
+        
+        fn b_inner() -> Result<(), BError> {
+            Err(ertrace!(BError))
+        }
+        new_error_type!(struct BError);
 
         crate::try_or_fatal!(a());
     }

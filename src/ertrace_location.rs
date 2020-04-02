@@ -17,15 +17,26 @@ impl core::fmt::Display for ErtraceLocation {
     }
 }
 
-#[macro_export]
+//TODO: confirm that the compiler only inserts a single
+// static string for file! and module_path!, rather than
+// one per invocation.
+
 /// Create `ErtraceLocation` at the given code location
+#[macro_export]
 macro_rules! new_ertrace_location {
     ($tag:expr) => {{
-        //TODO: confirm that the compiler only inserts a single
-        // static string for file! and module_path!, rather than
-        // one per invocation.
         static LOC: $crate::ErtraceLocation = $crate::ErtraceLocation {
             tag: core::stringify!($tag),
+            file: core::file!(),
+            line: core::line!(),
+            column: core::column!(),
+            module_path: core::module_path!(),
+        };
+        &LOC
+    }};
+    (=>) => {{
+        static LOC: $crate::ErtraceLocation = $crate::ErtraceLocation {
+            tag: "=>",
             file: core::file!(),
             line: core::line!(),
             column: core::column!(),
