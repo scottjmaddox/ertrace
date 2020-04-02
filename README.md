@@ -44,17 +44,16 @@ M:N threading, futures, and async/await.
 use ertrace::{ertrace, new_error_type};
 
 fn a() -> Result<(), AError> {
-    b().map_err(|e| ertrace!(AError caused by e))?;
-    Ok(())
+   b().map_err(|e| ertrace!(e => AError))?;
+   Ok(())
 }
 new_error_type!(struct AError);
 
 fn b() -> Result<(), BError> {
-    Err(ertrace!(BError))
+   Err(ertrace!(BError))
 }
 new_error_type!(struct BError);
 
-ertrace::init(1024);
 ertrace::try_or_fatal!(a());
 ```
 
@@ -62,10 +61,10 @@ Output:
 
 ```
 error return trace:
-0: BError at src/lib.rs:13:9 in rust_out
-1: AError at src/lib.rs:7:21 in rust_out
+    0: BError at src/lib.rs:16:9 in rust_out
+    1: AError at src/lib.rs:10:21 in rust_out
 
-thread 'main' panicked at 'fatal error', src/lib.rs:18:1
+thread 'main' panicked at 'fatal error', src/lib.rs:6:5
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
@@ -75,12 +74,11 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 use ertrace::{ertrace, new_error_type};
 
 fn main() {
-    ertrace::init(1024);
     ertrace::try_or_fatal!(a());
 }
 
 fn a() -> Result<(), AError> {
-    crate::b::b().map_err(|e| ertrace!(AError caused by e))?;
+    crate::b::b().map_err(|e| ertrace!(e => AError))?;
     Ok(())
 }
 new_error_type!(struct AError);
@@ -91,13 +89,14 @@ mod b {
     pub fn b() -> Result<(), BError> {
         crate::c::c().map_err(|e| match e.0 {
             crate::c::CErrorKind::CError1 =>
-                ertrace!(BError(BErrorKind::BError1) caused by e),
+                ertrace!(e => BError(BErrorKind::BError1)),
             crate::c::CErrorKind::CError2 =>
-                ertrace!(BError(BErrorKind::BError2) caused by e),
+                ertrace!(e => BError(BErrorKind::BError2)),
         })?;
         Ok(())
     }
     new_error_type!(pub struct BError(pub BErrorKind));
+    #[derive(Debug)]
     pub enum BErrorKind { BError1, BError2 }
 }
 
@@ -112,6 +111,7 @@ mod c {
         }
     }
     new_error_type!(pub struct CError(pub CErrorKind));
+    #[derive(Debug)]
     pub enum CErrorKind { CError1, CError2 }
 }
 ```
@@ -120,14 +120,13 @@ Output:
 
 ```
 error return trace:
-0: CError(CErrorKind::CError1) at src/lib.rs:37:17 in rust_out::c
-1: BError(BErrorKind::BError1) at src/lib.rs:22:17 in rust_out::b
-2: AError at src/lib.rs:11:31 in rust_out
+    0: CError at src/lib.rs:37:17 in rust_out::c
+    1: BError at src/lib.rs:21:17 in rust_out::b
+    2: AError at src/lib.rs:10:31 in rust_out
 
-thread 'main' panicked at 'fatal error', src/lib.rs:7:5
+thread 'main' panicked at 'fatal error', src/lib.rs:6:5
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
-
 
 ## `#![no_std]` Support
 
