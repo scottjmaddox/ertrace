@@ -38,93 +38,58 @@ causes an error of another type. Finally, since the errors are traced
 through each return point, error return tracing works seamlessly with
 M:N threading, futures, and async/await.
 
-## Simple Example
-
-```rust
-use ertrace::{ertrace, new_error_type};
-
-fn a() -> Result<(), AError> {
-   b().map_err(|e| ertrace!(e => AError))?;
-   Ok(())
-}
-new_error_type!(struct AError);
-
-fn b() -> Result<(), BError> {
-   Err(ertrace!(BError))
-}
-new_error_type!(struct BError);
-
-ertrace::try_or_fatal!(a());
-```
-
-Output:
-
-```
-error return trace:
-    0: BError at src/lib.rs:16:9 in rust_out
-    1: AError at src/lib.rs:10:21 in rust_out
-
-thread 'main' panicked at 'fatal error', src/lib.rs:6:5
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-```
-
-## Complex Example
+## Example
 
 ```rust
 use ertrace::{ertrace, new_error_type};
 
 fn main() {
+    // On any error in `a`, print the error return trace to stderr,
+    // and then `panic!`.
     ertrace::try_or_fatal!(a());
 }
 
 fn a() -> Result<(), AError> {
-    crate::b::b().map_err(|e| ertrace!(e => AError))?;
+    // On any error in `b`, return an `AError`, and trace the cause.
+    b().map_err(|e| ertrace!(e => AError))?;
     Ok(())
 }
-new_error_type!(struct AError);
+// Define a new traced error type, `AError`.
+new_error_type!(pub struct AError);
 
-mod b {
-    use ertrace::{ertrace, new_error_type};
-
-    pub fn b() -> Result<(), BError> {
-        crate::c::c().map_err(|e| match e.0 {
-            crate::c::CErrorKind::CError1 =>
-                ertrace!(e => BError(BErrorKind::BError1)),
-            crate::c::CErrorKind::CError2 =>
-                ertrace!(e => BError(BErrorKind::BError2)),
-        })?;
-        Ok(())
-    }
-    new_error_type!(pub struct BError(pub BErrorKind));
-    #[derive(Debug)]
-    pub enum BErrorKind { BError1, BError2 }
+fn b() -> Result<(), BError> {
+    // Forward any `BError` errors from `b_inner`.
+    b_inner().map_err(|mut e| ertrace!(e =>))
 }
 
-mod c {
-    use ertrace::{ertrace, new_error_type};
-
-    pub fn c() -> Result<(), CError> {
-        if true {
-            Err(ertrace!(CError(CErrorKind::CError1)))
-        } else {
-            Err(ertrace!(CError(CErrorKind::CError2)))
-        }
+fn b_inner() -> Result<(), BError> {
+    if true {
+        // Initialize and return a traced error, `BError`,
+        // with error variant `BError1`.
+        Err(ertrace!(BError(BErrorKind::BError1)))
+    } else {
+        // Initialize and return a traced error, `BError`,
+        // with error variant `BError2`.
+        Err(ertrace!(BError(BErrorKind::BError2)))
     }
-    new_error_type!(pub struct CError(pub CErrorKind));
-    #[derive(Debug)]
-    pub enum CErrorKind { CError1, CError2 }
 }
+// Define a new traced error type, `BError`, with variant `BErrorKind`.
+new_error_type!(pub struct BError(pub BErrorKind));
+
+// Define the `BError` variants.
+#[derive(Debug)]
+pub enum BErrorKind { BError1, BError2 }
 ```
 
 Output:
 
 ```
 error return trace:
-    0: CError at src/lib.rs:37:17 in rust_out::c
-    1: BError at src/lib.rs:21:17 in rust_out::b
-    2: AError at src/lib.rs:10:31 in rust_out
+    0: BError(BErrorKind::BError1) at src/lib.rs:28:13 in rust_out
+    1: => at src/lib.rs:21:31 in rust_out
+    2: AError at src/lib.rs:13:21 in rust_out
 
-thread 'main' panicked at 'fatal error', src/lib.rs:6:5
+thread 'main' panicked at 'fatal error', src/lib.rs:8:5
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 

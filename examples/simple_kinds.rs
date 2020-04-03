@@ -22,17 +22,17 @@ fn b() -> Result<(), BError> {
 fn b_inner() -> Result<(), BError> {
     if true {
         // Initialize and return a traced error, `BError`,
-        // with error variant `BError1`.
+        // with error kind `BError1`.
         Err(ertrace!(BError(BErrorKind::BError1)))
     } else {
         // Initialize and return a traced error, `BError`,
-        // with error variant `BError2`.
+        // with error kind `BError2`.
         Err(ertrace!(BError(BErrorKind::BError2)))
     }
 }
-// Define a new traced error type, `BError`, with variant `BErrorKind`.
+// Define a new traced error type, `BError`, with kinds `BErrorKind`.
 new_error_type!(pub struct BError(pub BErrorKind));
 
-// Define the `BError` variants.
+// Define the `BError` error kinds.
 #[derive(Debug)]
 pub enum BErrorKind { BError1, BError2 }
