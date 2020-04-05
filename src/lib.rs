@@ -40,13 +40,16 @@
 //!
 //! ```rust,should_panic
 //! use ertrace::{ertrace, new_error_type};
-//! 
+//!
 //! fn main() {
 //!     // On any error in `a`, print the error return trace to stderr,
 //!     // and then `panic!`.
+//!     # #[cfg(feature = "std")]
 //!     ertrace::try_or_fatal!(a());
+//!     # #[cfg(not(feature = "std"))]
+//!     # a().unwrap();
 //! }
-//! 
+//!
 //! fn a() -> Result<(), AError> {
 //!     // On any error in `b`, return an `AError`, and trace the cause.
 //!     b().map_err(|e| ertrace!(e => AError))?;
@@ -54,12 +57,12 @@
 //! }
 //! // Define a new traced error type, `AError`.
 //! new_error_type!(pub struct AError);
-//! 
+//!
 //! fn b() -> Result<(), BError> {
 //!     // Forward any `BError` errors from `b_inner`.
 //!     b_inner().map_err(|mut e| ertrace!(e =>))
 //! }
-//! 
+//!
 //! fn b_inner() -> Result<(), BError> {
 //!     if true {
 //!         // Initialize and return a traced error, `BError`,
@@ -73,7 +76,7 @@
 //! }
 //! // Define a new traced error type, `BError`, with variant `BErrorKind`.
 //! new_error_type!(pub struct BError(pub BErrorKind));
-//! 
+//!
 //! // Define the `BError` variants.
 //! #[derive(Debug)]
 //! pub enum BErrorKind { BError1, BError2 }
@@ -85,39 +88,41 @@
 //!     0: BError(BErrorKind::BError1) at src/lib.rs:28:13 in rust_out
 //!     1: => at src/lib.rs:21:31 in rust_out
 //!     2: AError at src/lib.rs:13:21 in rust_out
-//! 
+//!
 //! thread 'main' panicked at 'fatal error', src/lib.rs:8:5
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //!
-//! ## `#![no_std]` Support
-//!
-//! TODO
-//!
-//! Ertrace provides `no_std` support.
-//! By default, it depends on the `alloc` and `std` crates, in order
-//! to provide additional functionality, but these dependencies are
-//! gated behind the `alloc` and `std` features, respectively, and can be
-//! disabled by specifying `default-features = false` in your Cargo
-//! dependencies.
-//!
+//! ## `no_std` Support
+//! 
+//! Ertrace provides `no_std` support. By default, it depends on the `std` crate,
+//! in order to provide additional functionality, such as printing to stderr, but
+//! this dependency is gated behind the `std` feature, and can be disabled by
+//! specifying `default-features = false` in your Cargo dependencies.
+//! 
+//! Currently, the `alloc` crate is required, but it should be straight-forward to
+//! remove even that requirement by specifying a static block of memory in which
+//! to store error traces. If you have a use for this,
+//! [please open a Github issue](https://github.com/scottjmaddox/ertrace/issues/new).
+//! 
 //! ## Performance: Stack Traces vs. Error Return Traces
-//!
-//! In order for a stack trace to be displayed when an exception goes uncaught,
-//! the entire stack trace must be captured when the exception is created (or
-//! when it is thrown/raised). This is a fairly expensive operation since it
-//! requires traversing each stack frame and storing (at minimum) a pointer to
-//! each function in the call stack in some thread-local storage (which is
-//! typically heap-allocated). The argument usually made is that exceptions
-//! should only be thrown in exceptional cases, and so the performance cost of
-//! collecting a stack trace will not significantly degrade the overall program
-//! performance. In reality, though, errors are quite common, and the cost of
-//! stack traces is not negligible.
-//!
+//! 
+//! In order for a stack trace to be displayed when an exception goes uncaught, the
+//! entire stack trace must be captured when the exception is created (or when it is
+//! thrown/raised). This is a fairly expensive operation since it requires
+//! traversing each stack frame and storing (at minimum) a pointer for each function
+//! in the call stack, typically in some heap-allocated thread-local storage. The
+//! argument usually made is that exceptions should only be thrown in exceptional
+//! cases, and so the performance cost of collecting a stack trace will not
+//! significantly degrade the overall program performance. In reality, though,
+//! errors are quite common, and the cost of stack traces is not negligible.
+//! 
 //! In contrast, the cost of error return tracing starts very small, and scales
 //! linearly with the number of times errors are returned. If an error is
 //! handled one stack frame above where it is first created, the overhead
-//! runtime cost can be as small as a few ALU ops and a single memory write.
+//! runtime cost can be as small as a few ALU ops and a single memory write
+//! (if you have compiler support... The runtime overhead for this library
+//! implementation is a bit higher).
 
 #![deny(missing_debug_implementations)]
 // #![deny(missing_docs)] // TODO: uncomment this
@@ -130,180 +135,14 @@ mod with_std;
 #[cfg(feature = "std")]
 pub use with_std::*;
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-#[cfg(feature = "alloc")]
-mod with_alloc;
-#[cfg(feature = "alloc")]
-pub use with_alloc::*;
-#[cfg(not(feature = "alloc"))]
-pub use without_alloc::*;
-
 mod ertrace;
 mod ertrace_location;
+mod ertrace_macro;
+mod new_error_type_macro;
+#[cfg(test)]
+mod tests;
 
 pub use crate::ertrace::*;
 pub use crate::ertrace_location::*;
-
-#[macro_export]
-macro_rules! new_error_type {
-    (struct $struct_name:ident) => {
-        // e.g. `new_error_type!(struct Error);`
-        #[derive(Debug)]
-        struct $struct_name($crate::Ertrace);
-
-        impl core::convert::From<$struct_name> for $crate::Ertrace {
-            fn from(v: $struct_name) -> $crate::Ertrace {
-                v.0
-            }
-        }
-
-        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
-            fn as_mut(&mut self) -> &mut $crate::Ertrace {
-                &mut self.0
-            }
-        }
-
-        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
-            fn as_ref(&self) -> &$crate::Ertrace {
-                &self.0
-            }
-        }
-    };
-
-    (pub struct $struct_name:ident) => {
-        // e.g. `new_error_type!(pub struct AError);`
-        #[derive(Debug)]
-        pub struct $struct_name($crate::Ertrace);
-
-        impl core::convert::From<$struct_name> for $crate::Ertrace {
-            fn from(v: $struct_name) -> $crate::Ertrace {
-                v.0
-            }
-        }
-
-        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
-            fn as_mut(&mut self) -> &mut $crate::Ertrace {
-                &mut self.0
-            }
-        }
-
-        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
-            fn as_ref(&self) -> &$crate::Ertrace {
-                &self.0
-            }
-        }
-    };
-
-    (pub struct $struct_name:ident(pub $enum_name:ident)) => {
-        // e.g. `new_error_type!(pub struct BError(pub BErrorKind));`
-        #[derive(Debug)]
-        pub struct $struct_name(pub $enum_name, $crate::Ertrace);
-
-        impl core::convert::From<$struct_name> for $crate::Ertrace {
-            fn from(v: $struct_name) -> $crate::Ertrace {
-                v.1
-            }
-        }
-
-        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
-            fn as_mut(&mut self) -> &mut $crate::Ertrace {
-                &mut self.1
-            }
-        }
-
-        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
-            fn as_ref(&self) -> &$crate::Ertrace {
-                &self.1
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! ertrace {
-    ($cause:expr => $struct_name:ident($variant:expr)) => {{
-        let cause_ertrace: $crate::Ertrace = $cause.into();
-        let ertrace = $crate::Ertrace::from_cause(cause_ertrace,
-            $crate::new_ertrace_location!($struct_name($variant)));
-        $struct_name($variant, ertrace)
-    }};
-
-    ($cause:expr => $struct_name:ident) => {{
-        let cause_ertrace: $crate::Ertrace = $cause.into();
-        let ertrace = $crate::Ertrace::from_cause(cause_ertrace,
-            $crate::new_ertrace_location!($struct_name));
-        $struct_name(ertrace)
-    }};
-
-    ($cause:expr =>) => {{
-        {
-            let cause_ertrace: &mut $crate::Ertrace = $cause.as_mut();
-            cause_ertrace.push_back($crate::new_ertrace_location!(=>));
-        }
-        $cause        
-    }};
-
-    ($struct_name:ident($variant:expr)) => {{
-        let ertrace = $crate::Ertrace::new($crate::new_ertrace_location!($struct_name($variant)));
-        $struct_name($variant, ertrace)
-    }};
-
-    ($struct_name:ident) => {{
-        let ertrace = $crate::Ertrace::new($crate::new_ertrace_location!($struct_name));
-        $struct_name(ertrace)
-    }};
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[should_panic]
-    fn simple() {
-        fn a() -> Result<(), AError> {
-            b().map_err(|e| crate::ertrace!(e => AError))?;
-            Ok(())
-        }
-        crate::new_error_type!(struct AError);
-
-        fn b() -> Result<(), BError> {
-            b_inner().map_err(|mut e| ertrace!(e =>))
-        }
-        
-        fn b_inner() -> Result<(), BError> {
-            Err(ertrace!(BError))
-        }
-        new_error_type!(struct BError);
-
-        crate::try_or_fatal!(a());
-    }
-
-    #[test]
-    #[should_panic]
-    fn simple_kinds() {
-        use crate::{ertrace, new_error_type};
-        fn a() -> Result<(), AError> {
-            b().map_err(|e| ertrace!(e => AError))?;
-            Ok(())
-        }
-        new_error_type!(pub struct AError);
-        
-        fn b() -> Result<(), BError> {
-            b_inner().map_err(|mut e| ertrace!(e =>))
-        }
-        
-        fn b_inner() -> Result<(), BError> {
-            if true {
-                Err(ertrace!(BError(BErrorKind::BError1)))
-            } else {
-                Err(ertrace!(BError(BErrorKind::BError2)))
-            }
-        }
-        new_error_type!(pub struct BError(pub BErrorKind));
-        
-        #[derive(Debug)]
-        pub enum BErrorKind { BError1, BError2 }
-        
-        crate::try_or_fatal!(a());
-    }
-}
+pub use crate::ertrace_macro::*;
+pub use crate::new_error_type_macro::*;

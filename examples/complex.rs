@@ -1,7 +1,13 @@
 use ertrace::{ertrace, new_error_type};
 
+#[cfg(feature = "std")]
 fn main() {
-    ertrace::try_or_fatal!(a());
+    ertrace::try_or_fatal!(a()); 
+}
+
+#[cfg(not(feature = "std"))]    
+fn main() -> Result<(), AError> {
+    a()
 }
 
 fn a() -> Result<(), AError> {

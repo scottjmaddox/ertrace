@@ -1,9 +1,10 @@
-//! Singly linked list of ErtraceLocations, backed by either a global, static
-//! block of
-//! memory or by blocks of memory provided by the global allocator,
-//! with O(1) Drop to a global, lock-free free list.
+//! Singly linked list of `ErtraceLocation`s, with O(1) Drop to a global,
+//! lock-free free list.
+
+extern crate alloc;
 
 use crate::ertrace_location::ErtraceLocation;
+use alloc::boxed::Box;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicPtr, Ordering};
 

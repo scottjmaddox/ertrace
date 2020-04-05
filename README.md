@@ -93,29 +93,33 @@ thread 'main' panicked at 'fatal error', src/lib.rs:8:5
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
-## `#![no_std]` Support
+## `no_std` Support
 
-Ertrace provides `no_std` support.
-By default, it depends on the `alloc` and `std` crates, in order
-to provide additional functionality, but these dependencies are
-gated behind the `alloc` and `std` features, respectively, and can be
-disabled by specifying `default-features = false` in your Cargo
-dependencies.
+Ertrace provides `no_std` support. By default, it depends on the `std` crate,
+in order to provide additional functionality, such as printing to stderr, but
+this dependency is gated behind the `std` feature, and can be disabled by
+specifying `default-features = false` in your Cargo dependencies.
+
+Currently, the `alloc` crate is required, but it should be straight-forward to
+remove even that requirement by specifying a static block of memory in which
+to store error traces. If you have a use for this,
+[please open a Github issue](https://github.com/scottjmaddox/ertrace/issues/new).
 
 ## Performance: Stack Traces vs. Error Return Traces
 
-In order for a stack trace to be displayed when an exception goes uncaught,
-the entire stack trace must be captured when the exception is created (or
-when it is thrown/raised). This is a fairly expensive operation since it
-requires traversing each stack frame and storing (at minimum) a pointer to
-each function in the call stack in some thread-local storage (which is
-typically heap-allocated). The argument usually made is that exceptions
-should only be thrown in exceptional cases, and so the performance cost of
-collecting a stack trace will not significantly degrade the overall program
-performance. In reality, though, errors are quite common, and the cost of
-stack traces is not negligible.
+In order for a stack trace to be displayed when an exception goes uncaught, the
+entire stack trace must be captured when the exception is created (or when it is
+thrown/raised). This is a fairly expensive operation since it requires
+traversing each stack frame and storing (at minimum) a pointer for each function
+in the call stack, typically in some heap-allocated thread-local storage. The
+argument usually made is that exceptions should only be thrown in exceptional
+cases, and so the performance cost of collecting a stack trace will not
+significantly degrade the overall program performance. In reality, though,
+errors are quite common, and the cost of stack traces is not negligible.
 
 In contrast, the cost of error return tracing starts very small, and scales
 linearly with the number of times errors are returned. If an error is
 handled one stack frame above where it is first created, the overhead
-runtime cost can be as small as a few ALU ops and a single memory write.
+runtime cost can be as small as a few ALU ops and a single memory write
+(if you have compiler support... The runtime overhead for this library
+implementation is a bit higher).

@@ -1,9 +1,15 @@
 use ertrace::{ertrace, new_error_type};
 
+#[cfg(feature = "std")]
 fn main() {
     // On any error in `a`, print the error return trace to stderr,
     // and then `panic!`.
-    ertrace::try_or_fatal!(a());
+    ertrace::try_or_fatal!(a()); 
+}
+
+#[cfg(not(feature = "std"))]    
+fn main() -> Result<(), AError> {
+    a()
 }
 
 fn a() -> Result<(), AError> {
