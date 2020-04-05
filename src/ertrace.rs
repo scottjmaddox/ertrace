@@ -1,7 +1,7 @@
 //! Singly linked list of ErtraceLocations, backed by either a global, static
 //! block of
 //! memory or by blocks of memory provided by the global allocator,
-//! with lock-free O(1) Drop to a global free list.
+//! with O(1) Drop to a global, lock-free free list.
 
 use crate::ertrace_location::ErtraceLocation;
 use core::ptr::NonNull;
@@ -11,16 +11,18 @@ static FREE_LIST: AtomicPtr<ErtraceNode> = AtomicPtr::new(core::ptr::null_mut())
 
 fn try_take_from_free_list() -> Result<NonNull<ErtraceNode>, ()> {
     loop {
-        let current_ptr = FREE_LIST.load(Ordering::SeqCst);
-        let node = if let Some(p) = unsafe { current_ptr.as_mut() } {
+        let current_ptr = FREE_LIST.load(Ordering::Acquire);
+        // NOTE: this is safe because this pointer is either null or valid.
+        let node = if let Some(p) = unsafe { current_ptr.as_ref() } {
             p
         } else {
             return Err(());
         };
-        let new_ptr = node.next.load(Ordering::SeqCst);
-        if FREE_LIST.compare_and_swap(current_ptr, new_ptr, Ordering::SeqCst) == current_ptr {
-            node.next.store(core::ptr::null_mut(), Ordering::SeqCst);
-            return Ok(unsafe { NonNull::new_unchecked(node) });
+        let new_ptr = node.next.load(Ordering::Relaxed);
+        if FREE_LIST.compare_and_swap(current_ptr, new_ptr, Ordering::Release) == current_ptr {
+            node.next.store(core::ptr::null_mut(), Ordering::Relaxed);
+            // NOTE: this is safe because the pointer is non-null if we reached here.
+            return Ok(unsafe { NonNull::new_unchecked(current_ptr) });
         }
     }
 }
@@ -28,6 +30,7 @@ fn try_take_from_free_list() -> Result<NonNull<ErtraceNode>, ()> {
 fn new_tail_node(data: &'static ErtraceLocation) -> NonNull<ErtraceNode> {
     match try_take_from_free_list() {
         Ok(mut node_ptr) => {
+            // NOTE: this is safe because the pointer is valid and globally unique.
             unsafe { node_ptr.as_mut() }.data = data;
             node_ptr
         }
@@ -37,6 +40,7 @@ fn new_tail_node(data: &'static ErtraceLocation) -> NonNull<ErtraceNode> {
                 next: AtomicPtr::new(core::ptr::null_mut()),
                 data,
             }));
+            // NOTE: this is safe because the pointer is non-null.
             unsafe { NonNull::new_unchecked(node_ptr) }
         }
     }
@@ -75,9 +79,14 @@ impl Ertrace {
 
     pub fn push_back(&mut self, data: &'static ErtraceLocation) {
         let new_tail = new_tail_node(data);
+        // NOTE: this is safe because
+        //   1) the pointer to this ErtraceNode is valid, and
+        //   2) we control access to the only other pointer to this ErtraceNode,
+        //   and can guarantee that it is not converted into a mutable reference while
+        //   this mutable reference exists.
         unsafe { self.tail.as_mut() }
             .next
-            .store(new_tail.as_ptr(), Ordering::SeqCst);
+            .store(new_tail.as_ptr(), Ordering::Relaxed);
         self.tail = new_tail;
     }
 
@@ -101,8 +110,9 @@ impl<'a> Iterator for ErtraceIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.maybe_next_ptr {
             Some(next_ptr) => {
+                // NOTE: this is safe because the pointer is valid.
                 let node = unsafe { next_ptr.as_ref() };
-                self.maybe_next_ptr = NonNull::new(node.next.load(Ordering::SeqCst));
+                self.maybe_next_ptr = NonNull::new(node.next.load(Ordering::Relaxed));
                 Some(node.data)
             }
             None => None,
@@ -118,11 +128,16 @@ struct ErtraceNode {
 
 impl Drop for Ertrace {
     fn drop(&mut self) {
+        // NOTE: this is safe because
+        //   1) the pointer to this ErtraceNode is valid, and
+        //   2) we control access to the only other pointer to this ErtraceNode,
+        //   and can guarantee that it is not converted into a mutable reference while
+        //   this mutable reference exists.
         let tail = unsafe { self.tail.as_mut() };
         loop {
-            let old_next = FREE_LIST.load(Ordering::SeqCst);
-            tail.next.store(old_next, Ordering::SeqCst);
-            if FREE_LIST.compare_and_swap(old_next, self.head.as_ptr(), Ordering::SeqCst)
+            let old_next = FREE_LIST.load(Ordering::Acquire);
+            tail.next.store(old_next, Ordering::Relaxed);
+            if FREE_LIST.compare_and_swap(old_next, self.head.as_ptr(), Ordering::Release)
                 == old_next
             {
                 return;
