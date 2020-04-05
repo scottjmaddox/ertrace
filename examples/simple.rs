@@ -1,4 +1,4 @@
-use ertrace::{ertrace, new_error_type};
+use ertrace::{ertrace, new_error_struct};
 
 #[cfg(feature = "std")]
 fn main() {
@@ -18,7 +18,7 @@ fn a() -> Result<(), AError> {
     Ok(())
 }
 // Define a new traced error type, `AError`.
-new_error_type!(struct AError);
+new_error_struct!(struct AError);
 
 fn b() -> Result<(), BError> {
     // Forward any `BError` errors from `b_inner`.
@@ -30,4 +30,4 @@ fn b_inner() -> Result<(), BError> {
     Err(ertrace!(BError))
 }
 // Define a new traced error type, `BError`.
-new_error_type!(struct BError);
+new_error_struct!(struct BError);

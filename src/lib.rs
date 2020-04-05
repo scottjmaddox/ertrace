@@ -39,7 +39,7 @@
 //! ## Example
 //!
 //! ```rust,should_panic
-//! use ertrace::{ertrace, new_error_type};
+//! use ertrace::{ertrace, new_error_struct};
 //!
 //! fn main() {
 //!     // On any error in `a`, print the error return trace to stderr,
@@ -56,7 +56,7 @@
 //!     Ok(())
 //! }
 //! // Define a new traced error type, `AError`.
-//! new_error_type!(pub struct AError);
+//! new_error_struct!(pub struct AError);
 //!
 //! fn b() -> Result<(), BError> {
 //!     // Forward any `BError` errors from `b_inner`.
@@ -75,7 +75,7 @@
 //!     }
 //! }
 //! // Define a new traced error type, `BError`, with variant `BErrorKind`.
-//! new_error_type!(pub struct BError(pub BErrorKind));
+//! new_error_struct!(pub struct BError(pub BErrorKind));
 //!
 //! // Define the `BError` variants.
 //! #[derive(Debug)]
@@ -138,11 +138,11 @@ pub use with_std::*;
 mod ertrace;
 mod ertrace_location;
 mod ertrace_macro;
-mod new_error_type_macro;
+mod new_error_struct_macro;
 #[cfg(test)]
 mod tests;
 
 pub use crate::ertrace::*;
 pub use crate::ertrace_location::*;
 pub use crate::ertrace_macro::*;
-pub use crate::new_error_type_macro::*;
+pub use crate::new_error_struct_macro::*;

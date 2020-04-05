@@ -1,7 +1,7 @@
 #[macro_export]
-macro_rules! new_error_type {
+macro_rules! new_error_struct {
     (struct $struct_name:ident) => {
-        // e.g. `new_error_type!(struct Error);`
+        // e.g. `new_error_struct!(struct Error);`
         #[derive(Debug)]
         struct $struct_name($crate::Ertrace);
 
@@ -25,7 +25,7 @@ macro_rules! new_error_type {
     };
 
     (pub struct $struct_name:ident) => {
-        // e.g. `new_error_type!(pub struct AError);`
+        // e.g. `new_error_struct!(pub struct AError);`
         #[derive(Debug)]
         pub struct $struct_name($crate::Ertrace);
 
@@ -49,7 +49,7 @@ macro_rules! new_error_type {
     };
 
     (pub struct $struct_name:ident(pub $enum_name:ident)) => {
-        // e.g. `new_error_type!(pub struct BError(pub BErrorKind));`
+        // e.g. `new_error_struct!(pub struct BError(pub BErrorKind));`
         #[derive(Debug)]
         pub struct $struct_name(pub $enum_name, $crate::Ertrace);
 

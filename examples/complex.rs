@@ -1,4 +1,4 @@
-use ertrace::{ertrace, new_error_type};
+use ertrace::{ertrace, new_error_struct};
 
 #[cfg(feature = "std")]
 fn main() {
@@ -14,10 +14,10 @@ fn a() -> Result<(), AError> {
     crate::b::b().map_err(|e| ertrace!(e => AError))?;
     Ok(())
 }
-new_error_type!(struct AError);
+new_error_struct!(struct AError);
 
 mod b {
-    use ertrace::{ertrace, new_error_type};
+    use ertrace::{ertrace, new_error_struct};
     
     pub fn b() -> Result<(), BError> {
         crate::c::c().map_err(|e| match e.0 {
@@ -28,13 +28,13 @@ mod b {
         })?;
         Ok(())
     }
-    new_error_type!(pub struct BError(pub BErrorKind));
+    new_error_struct!(pub struct BError(pub BErrorKind));
     #[derive(Debug)]
     pub enum BErrorKind { BError1, BError2 }
 }
 
 mod c {
-    use ertrace::{ertrace, new_error_type};
+    use ertrace::{ertrace, new_error_struct};
 
     pub fn c() -> Result<(), CError> {
         if true {
@@ -43,7 +43,7 @@ mod c {
             Err(ertrace!(CError(CErrorKind::CError2)))
         }
     }
-    new_error_type!(pub struct CError(pub CErrorKind));
+    new_error_struct!(pub struct CError(pub CErrorKind));
     #[derive(Debug)]
     pub enum CErrorKind { CError1, CError2 }
 }

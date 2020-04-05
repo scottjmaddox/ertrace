@@ -41,7 +41,7 @@ M:N threading, futures, and async/await.
 ## Example
 
 ```rust
-use ertrace::{ertrace, new_error_type};
+use ertrace::{ertrace, new_error_struct};
 
 fn main() {
     // On any error in `a`, print the error return trace to stderr,
@@ -55,7 +55,7 @@ fn a() -> Result<(), AError> {
     Ok(())
 }
 // Define a new traced error type, `AError`.
-new_error_type!(pub struct AError);
+new_error_struct!(pub struct AError);
 
 fn b() -> Result<(), BError> {
     // Forward any `BError` errors from `b_inner`.
@@ -74,7 +74,7 @@ fn b_inner() -> Result<(), BError> {
     }
 }
 // Define a new traced error type, `BError`, with variant `BErrorKind`.
-new_error_type!(pub struct BError(pub BErrorKind));
+new_error_struct!(pub struct BError(pub BErrorKind));
 
 // Define the `BError` variants.
 #[derive(Debug)]
