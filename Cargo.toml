@@ -1,12 +1,12 @@
 [package]
 name = "ertrace"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 authors = ["Scott J Maddox"]
 license = "MIT OR Apache-2.0"
 description = "Experimental Error Return Tracing for Rust"
 repository = "https://github.com/scottjmaddox/ertrace"
-documentation = "https://docs.serde.rs/ertrace/"
+documentation = "https://docs.rs/ertrace/"
 readme = "README.md"
 keywords = ["ertrace", "error", "return", "tracing", "no_std"]
 categories = ["development-tools::debugging", "no-std"]
