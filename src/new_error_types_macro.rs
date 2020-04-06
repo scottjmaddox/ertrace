@@ -2,8 +2,8 @@
 macro_rules! new_error_types {
     () => {};
 
-    ($vis:vis struct $struct_name:ident; $($tail:tt)*) => {
-        $crate::new_error_struct! { $vis struct $struct_name; }
+    ($vis:vis struct $name:ident($type:ty); $($tail:tt)*) => {
+        $crate::new_error_struct! { $vis struct $name($type); }
         $crate::new_error_types! { $($tail)* }
     };
 

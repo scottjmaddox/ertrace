@@ -1,15 +1,8 @@
-use ertrace::{ertrace};
+use ertrace::{ertrace, Ertrace};
 
-#[cfg(feature = "std")]
-fn main() {
-    // On any error in `a`, print the error return trace to stderr,
-    // and then `panic!`.
-    ertrace::try_or_fatal!(a());
-}
-
-#[cfg(not(feature = "std"))]
 fn main() -> Result<(), AError> {
-    a()
+    // Forward any `AError` errors from `a`.
+    a().map_err(|mut e| ertrace!(e =>))
 }
 
 fn a() -> Result<(), AError> {
@@ -37,9 +30,9 @@ fn b_inner() -> Result<(), BError> {
 
 ertrace::new_error_types! {
     // Define new traced error structs `AError`, `BError1`, and `BError2`.
-    pub struct AError;
-    pub struct BError1;
-    pub struct BError2;
+    pub struct AError(Ertrace);
+    pub struct BError1(Ertrace);
+    pub struct BError2(Ertrace);
 
     // Define a new traced error enum `BError`, with variants for
     // `BError1` and `BError2`.

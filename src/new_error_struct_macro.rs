@@ -1,23 +1,30 @@
 #[macro_export]
 macro_rules! new_error_struct {
-    ($vis:vis struct $struct_name:ident;) => {
+    ($vis:vis struct $name:ident($type:ty);) => {
         // e.g. `new_error_struct!(pub struct AError);`
-        #[derive(Debug)]
-        $vis struct $struct_name($crate::Ertrace);
+        $vis struct $name($type);
 
-        impl core::convert::From<$struct_name> for $crate::Ertrace {
-            fn from(v: $struct_name) -> $crate::Ertrace {
+        impl core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                f.debug_struct(stringify!($name)).finish()?;
+                // writeln!()
+                writeln!(f, "\n{}", self.0)
+            }
+        }
+
+        impl core::convert::From<$name> for $crate::Ertrace {
+            fn from(v: $name) -> $crate::Ertrace {
                 v.0
             }
         }
 
-        impl core::convert::AsMut<$crate::Ertrace> for $struct_name {
+        impl core::convert::AsMut<$crate::Ertrace> for $name {
             fn as_mut(&mut self) -> &mut $crate::Ertrace {
                 &mut self.0
             }
         }
 
-        impl core::convert::AsRef<$crate::Ertrace> for $struct_name {
+        impl core::convert::AsRef<$crate::Ertrace> for $name {
             fn as_ref(&self) -> &$crate::Ertrace {
                 &self.0
             }
