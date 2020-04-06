@@ -1,20 +1,24 @@
 #[macro_export]
 macro_rules! new_error_enum {
-    // Exit rules
     (
-        @collect_unitary_variants $vis:vis $name:ident
-        ($(,)*) -> ($($var_names:ident,)*)
+        $vis:vis enum $name:ident {
+            $(
+                $var_name:ident $var_payload:tt,
+            )*
+        }
     ) => {
         #[derive(Debug)]
         $vis enum $name {
-            $($var_names($var_names)),*
+            $(
+                $var_name $var_payload,
+            )*
         }
 
         impl core::convert::From<$name> for $crate::Ertrace {
             fn from(v: $name) -> $crate::Ertrace {
                 match v {
                     $(
-                        $name::$var_names(err) => {
+                        $name::$var_name(err) => {
                             err.into()
                         }
                     )*
@@ -23,9 +27,9 @@ macro_rules! new_error_enum {
         }
 
         $(
-            impl core::convert::From<$var_names> for $name {
-                fn from(v: $var_names) -> $name {
-                    $name::$var_names(v)
+            impl core::convert::From<$var_name> for $name {
+                fn from(v: $var_name) -> $name {
+                    $name::$var_name(v)
                 }
             }
         )*
@@ -34,7 +38,7 @@ macro_rules! new_error_enum {
             fn as_mut(&mut self) -> &mut $crate::Ertrace {
                 match self {
                     $(
-                        $name::$var_names(err) => {
+                        $name::$var_name(err) => {
                             err.as_mut()
                         }
                     )*
@@ -42,51 +46,16 @@ macro_rules! new_error_enum {
             }
         }
 
-        // impl core::convert::AsRef<$crate::Ertrace> for $name {
-        //     fn as_ref(&self) -> &$crate::Ertrace {
-        //         use $name::*;
-        //         &self.0
-        //     }
-        // }
-    };
-
-    // // Consume an attribute.
-    // (
-    //     @collect_unitary_variants $vis:vis $name:ident
-    //     (#[$_attr:meta] $($tail:tt)*) -> ($($var_names:tt)*)
-    // ) => {
-    //     new_error_enum! {
-    //         @collect_unitary_variants $vis $name
-    //         ($($tail)*) -> ($($var_names)*)
-    //     }
-    // };
-
-    // Handle a variant, optionally with an with initialiser.
-    (
-        @collect_unitary_variants $vis:vis $name:ident
-        ($var:ident $(= $_val:expr)*, $($tail:tt)*) -> ($($var_names:tt)*)
-    ) => {
-        new_error_enum! {
-            @collect_unitary_variants $vis $name
-            ($($tail)*) -> ($($var_names)* $var,)
-        }
-    };
-
-    // Abort on variant with a payload.
-    (
-        @collect_unitary_variants $vis:vis $name:ident
-        ($var:ident $_struct:tt, $($tail:tt)*) -> ($($var_names:tt)*)
-    ) => {
-        const _error: () = "cannot parse unitary variants from enum with non-unitary variants";
-    };
-    
-    // Entry rule.
-    (
-        $vis:vis enum $name:ident {$($body:tt)*}
-    ) => {
-        new_error_enum! {
-            @collect_unitary_variants
-            $vis $name ($($body)*,) -> ()
+        impl core::convert::AsRef<$crate::Ertrace> for $name {
+            fn as_ref(&self) -> &$crate::Ertrace {
+                match self {
+                    $(
+                        $name::$var_name(err) => {
+                            err.as_ref()
+                        }
+                    )*
+                }
+            }
         }
     };
 }
