@@ -29,8 +29,5 @@ fn basics() {
         }
     }
     
-    #[cfg(feature = "std")]
-    crate::try_or_fatal!(a());
-    #[cfg(not(feature = "std"))]
     a().unwrap()
 }

@@ -128,13 +128,6 @@
 // #![deny(missing_docs)] // TODO: uncomment this
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(feature = "std")]
-extern crate std;
-#[cfg(feature = "std")]
-mod with_std;
-#[cfg(feature = "std")]
-pub use with_std::*;
-
 mod ertrace;
 mod ertrace_location;
 mod ertrace_macro;
