@@ -38,71 +38,73 @@
 //!
 //! ## Example
 //!
-//! ```skip,rust,should_panic
-//! use ertrace::{ertrace, new_error_struct};
-//!
-//! fn main() {
-//!     // On any error in `a`, print the error return trace to stderr,
-//!     // and then `panic!`.
-//!     # #[cfg(feature = "std")]
-//!     ertrace::try_or_fatal!(a());
-//!     # #[cfg(not(feature = "std"))]
-//!     # a().unwrap();
+//! ```rust,should_panic
+//! use ertrace::{ertrace, Ertrace};
+//! 
+//! fn main() -> Result<(), AError> {
+//!     // Forward any `AError` errors from `a`.
+//!     a().map_err(|mut e| ertrace!(e =>))
 //! }
-//!
+//! 
 //! fn a() -> Result<(), AError> {
 //!     // On any error in `b`, return an `AError`, and trace the cause.
 //!     b().map_err(|e| ertrace!(e => AError))?;
 //!     Ok(())
 //! }
-//! // Define a new traced error type, `AError`.
-//! new_error_struct!(pub struct AError);
-//!
+//! 
 //! fn b() -> Result<(), BError> {
 //!     // Forward any `BError` errors from `b_inner`.
 //!     b_inner().map_err(|mut e| ertrace!(e =>))
 //! }
-//!
+//! 
 //! fn b_inner() -> Result<(), BError> {
 //!     if true {
 //!         // Initialize and return a traced error, `BError`,
-//!         // with error variant `BError1`.
-//!         Err(ertrace!(BError(BErrorKind::BError1)))
+//!         // with error kind `BError1`.
+//!         Err(ertrace!(BError1))?
 //!     } else {
 //!         // Initialize and return a traced error, `BError`,
-//!         // with error variant `BError2`.
-//!         Err(ertrace!(BError(BErrorKind::BError2)))
+//!         // with error kind `BError2`.
+//!         Err(ertrace!(BError2))?
 //!     }
 //! }
-//! // Define a new traced error type, `BError`, with variant `BErrorKind`.
-//! new_error_struct!(pub struct BError(pub BErrorKind));
-//!
-//! // Define the `BError` variants.
-//! #[derive(Debug)]
-//! pub enum BErrorKind { BError1, BError2 }
+//! 
+//! ertrace::new_error_types! {
+//!     // Define new traced error structs `AError`, `BError1`, and `BError2`.
+//!     pub struct AError(Ertrace);
+//!     pub struct BError1(Ertrace);
+//!     pub struct BError2(Ertrace);
+//! 
+//!     // Define a new traced error enum `BError`, with variants for
+//!     // `BError1` and `BError2`.
+//!     pub enum BError {
+//!         BError1(BError1),
+//!         BError2(BError2),
+//!     }
+//! }
 //! ```
-//!
+//! 
 //! Output:
+//! 
 //! ```skip
+//! Error: AError
 //! error return trace:
-//!     0: BError(BErrorKind::BError1) at src/lib.rs:28:13 in rust_out
-//!     1: => at src/lib.rs:21:31 in rust_out
-//!     2: AError at src/lib.rs:13:21 in rust_out
-//!
-//! thread 'main' panicked at 'fatal error', src/lib.rs:8:5
-//! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+//!     0: BError1 at examples/basics.rs:23:13 in basics
+//!     1: => at examples/basics.rs:16:31 in basics
+//!     2: AError at examples/basics.rs:10:21 in basics
+//!     3: => at examples/basics.rs:5:25 in basics
 //! ```
 //!
 //! ## `no_std` Support
 //!
 //! Ertrace provides `no_std` support. By default, it depends on the `std` crate,
-//! in order to provide additional functionality, such as printing to stderr, but
+//! in order to provide additional functionality, but
 //! this dependency is gated behind the `std` feature, and can be disabled by
 //! specifying `default-features = false` in your Cargo dependencies.
 //!
 //! Currently, the `alloc` crate is required, but it should be straight-forward to
 //! remove even that requirement by specifying a static block of memory in which
-//! to store error traces. If you have a use for this,
+//! to store error traces. If you have a need for this,
 //! [please open a Github issue](https://github.com/scottjmaddox/ertrace/issues/new).
 //!
 //! ## Performance: Stack Traces vs. Error Return Traces
