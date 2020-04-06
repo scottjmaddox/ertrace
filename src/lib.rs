@@ -38,7 +38,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,should_panic
+//! ```skip,rust,should_panic
 //! use ertrace::{ertrace, new_error_struct};
 //!
 //! fn main() {
@@ -94,19 +94,19 @@
 //! ```
 //!
 //! ## `no_std` Support
-//! 
+//!
 //! Ertrace provides `no_std` support. By default, it depends on the `std` crate,
 //! in order to provide additional functionality, such as printing to stderr, but
 //! this dependency is gated behind the `std` feature, and can be disabled by
 //! specifying `default-features = false` in your Cargo dependencies.
-//! 
+//!
 //! Currently, the `alloc` crate is required, but it should be straight-forward to
 //! remove even that requirement by specifying a static block of memory in which
 //! to store error traces. If you have a use for this,
 //! [please open a Github issue](https://github.com/scottjmaddox/ertrace/issues/new).
-//! 
+//!
 //! ## Performance: Stack Traces vs. Error Return Traces
-//! 
+//!
 //! In order for a stack trace to be displayed when an exception goes uncaught, the
 //! entire stack trace must be captured when the exception is created (or when it is
 //! thrown/raised). This is a fairly expensive operation since it requires
@@ -116,7 +116,7 @@
 //! cases, and so the performance cost of collecting a stack trace will not
 //! significantly degrade the overall program performance. In reality, though,
 //! errors are quite common, and the cost of stack traces is not negligible.
-//! 
+//!
 //! In contrast, the cost of error return tracing starts very small, and scales
 //! linearly with the number of times errors are returned. If an error is
 //! handled one stack frame above where it is first created, the overhead
@@ -138,6 +138,7 @@ pub use with_std::*;
 mod ertrace;
 mod ertrace_location;
 mod ertrace_macro;
+mod new_error_enum_macro;
 mod new_error_struct_macro;
 #[cfg(test)]
 mod tests;
@@ -145,4 +146,5 @@ mod tests;
 pub use crate::ertrace::*;
 pub use crate::ertrace_location::*;
 pub use crate::ertrace_macro::*;
+pub use crate::new_error_enum_macro::*;
 pub use crate::new_error_struct_macro::*;

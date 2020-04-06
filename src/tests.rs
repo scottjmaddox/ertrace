@@ -26,7 +26,7 @@ fn simple() {
 #[test]
 #[should_panic]
 fn simple_kinds() {
-    use crate::{ertrace, new_error_struct};
+    use crate::{ertrace, new_error_enum, new_error_struct};
     fn a() -> Result<(), AError> {
         b().map_err(|e| ertrace!(e => AError))?;
         Ok(())
@@ -39,15 +39,17 @@ fn simple_kinds() {
     
     fn b_inner() -> Result<(), BError> {
         if true {
-            Err(ertrace!(BError(BErrorKind::BError1)))
+            Err(ertrace!(BError1))?
         } else {
-            Err(ertrace!(BError(BErrorKind::BError2)))
+            Err(ertrace!(BError2))?
         }
     }
-    new_error_struct!(pub struct BError(pub BErrorKind));
-    
-    #[derive(Debug)]
-    pub enum BErrorKind { BError1, BError2 }
+    new_error_struct!(pub struct BError1);
+    new_error_struct!(pub struct BError2);
+    new_error_enum!(pub enum BError {
+        BError1,
+        BError2,
+    });
     
     #[cfg(feature = "std")]
     crate::try_or_fatal!(a());
