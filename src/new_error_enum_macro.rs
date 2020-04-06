@@ -1,12 +1,6 @@
 #[macro_export]
 macro_rules! new_error_enum {
-    (
-        $vis:vis enum $name:ident {
-            $(
-                $var_name:ident $var_payload:tt,
-            )*
-        }
-    ) => {
+    ($vis:vis enum $name:ident {$($var_name:ident $var_payload:tt),* $(,)?}) => {
         #[derive(Debug)]
         $vis enum $name {
             $(

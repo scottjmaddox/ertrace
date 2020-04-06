@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! new_error_struct {
-    ($vis:vis struct $struct_name:ident) => {
+    ($vis:vis struct $struct_name:ident;) => {
         // e.g. `new_error_struct!(pub struct AError);`
         #[derive(Debug)]
         $vis struct $struct_name($crate::Ertrace);

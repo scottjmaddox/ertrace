@@ -140,6 +140,7 @@ mod ertrace_location;
 mod ertrace_macro;
 mod new_error_enum_macro;
 mod new_error_struct_macro;
+mod new_error_types_macro;
 #[cfg(test)]
 mod tests;
 
@@ -148,3 +149,4 @@ pub use crate::ertrace_location::*;
 pub use crate::ertrace_macro::*;
 pub use crate::new_error_enum_macro::*;
 pub use crate::new_error_struct_macro::*;
+pub use crate::new_error_types_macro::*;

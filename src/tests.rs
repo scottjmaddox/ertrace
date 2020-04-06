@@ -1,13 +1,12 @@
 #[test]
 #[should_panic]
 fn basics() {
-    use crate::{ertrace, new_error_enum, new_error_struct};
+    use crate::ertrace;
     
     fn a() -> Result<(), AError> {
         b().map_err(|e| ertrace!(e => AError))?;
         Ok(())
     }
-    new_error_struct!(pub struct AError);
     
     fn b() -> Result<(), BError> {
         b_inner().map_err(|mut e| ertrace!(e =>))
@@ -20,12 +19,16 @@ fn basics() {
             Err(ertrace!(BError2))?
         }
     }
-    new_error_struct!(pub struct BError1);
-    new_error_struct!(pub struct BError2);
-    new_error_enum!(pub enum BError {
-        BError1(BError1),
-        BError2(BError2),
-    });
+
+    crate::new_error_types! {
+        pub struct AError;
+        pub struct BError1;
+        pub struct BError2;
+        pub enum BError {
+            BError1(BError1),
+            BError2(BError2),
+        }
+    }
     
     #[cfg(feature = "std")]
     crate::try_or_fatal!(a());

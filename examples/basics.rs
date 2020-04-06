@@ -1,4 +1,4 @@
-use ertrace::{ertrace, new_error_enum, new_error_struct};
+use ertrace::{ertrace};
 
 #[cfg(feature = "std")]
 fn main() {
@@ -17,8 +17,6 @@ fn a() -> Result<(), AError> {
     b().map_err(|e| ertrace!(e => AError))?;
     Ok(())
 }
-// Define a new traced error type, `AError`.
-new_error_struct!(pub struct AError);
 
 fn b() -> Result<(), BError> {
     // Forward any `BError` errors from `b_inner`.
@@ -36,22 +34,17 @@ fn b_inner() -> Result<(), BError> {
         Err(ertrace!(BError2))?
     }
 }
-// Define new traced error structs `BError1` and `BError2`.
-new_error_struct!(pub struct BError1);
-new_error_struct!(pub struct BError2);
 
-// Define a new traced error enum `BError`, with variants for
-// `BError1` and `BError2`.
-new_error_enum!(
+ertrace::new_error_types! {
+    // Define new traced error structs `AError`, `BError1`, and `BError2`.
+    pub struct AError;
+    pub struct BError1;
+    pub struct BError2;
+
+    // Define a new traced error enum `BError`, with variants for
+    // `BError1` and `BError2`.
     pub enum BError {
         BError1(BError1),
         BError2(BError2),
     }
-);
-
-// Define the `BError` error kinds.
-#[derive(Debug)]
-pub enum BErrorKind {
-    BError1,
-    BError2,
 }
