@@ -18,12 +18,14 @@ fn b() -> Result<(), BError> {
 
 fn b_inner() -> Result<(), BError> {
     if true {
-        // Initialize and return a traced error, `BError`,
-        // with error kind `BError1`.
+        // Initialize the traced error struct, `BError1`, and then use the `?`
+        // operator to convert it into the appropriate `BError` enum instance
+        // and return it.
         Err(ertrace!(BError1))?
     } else {
-        // Initialize and return a traced error, `BError`,
-        // with error kind `BError2`.
+        // Initialize the traced error struct, `BError2`, and then use the `?`
+        // operator to convert it into the appropriate `BError` enum instance
+        // and return it.
         Err(ertrace!(BError2))?
     }
 }
